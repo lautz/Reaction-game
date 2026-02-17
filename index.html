@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KINETIC_REFLEX | Precision Engine</title>
+    
+    <!-- Typography: Inter for UI, JetBrains Mono for Data -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Three.js Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        :root {
+            /* Electric Precision Palette */
+            --bg: #0F172A;
+            --surface: rgba(30, 41, 59, 0.7);
+            --accent: #22D3EE;
+            --accent-dim: rgba(34, 211, 238, 0.2);
+            --trigger: #10B981;
+            --decoy: #A855F7;    /* Purple for Decoy 1 */
+            --decoy-2: #F59E0B;  /* Orange for Decoy 2 */
+            --error: #F43F5E;
+            --text: #F8FAFC;
+            --text-muted: #94A3B8;
+
+            /* Spacing & Borders */
+            --radius: 16px;
+            --blur: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none; /* Prevent text selection during frantic clicking */
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Typography Utilities */
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-variant-numeric: tabular-nums;
+        }
+
+        h1 {
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            font-size: 2.5rem;
+            background: linear-gradient(to right, var(--text), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--accent);
+            letter-spacing: 0.2em;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .instructions {
+            background: rgba(34, 211, 238, 0.05);
+            border: 1px solid rgba(34, 211, 238, 0.2);
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+            text-align: left;
+        }
+
+        .highlight-trigger { color: var(--trigger); font-weight: 800; }
+        .highlight-decoy { color: var(--decoy); font-weight: 800; }
+        .highlight-decoy-2 { color: var(--decoy-2); font-weight: 800; }
+
+        /* 3D Canvas Layer */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            cursor: crosshair;
+        }
+
+        /* Layout Container */
+        #app-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: var(--surface);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius);
+            padding: 3rem;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute; /* Remove from flow */
+            transform: scale(0.95);
+        }
+
+        .active {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+        }
+
+        /* Controls */
+        .controls-grid {
+            display: grid;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .meta-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: var(--bg);
+            border-radius: 2px;
+            appearance: none;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 1rem 2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .btn-primary:hover {
+            background: #fff;
+            box-shadow: 0 0 20px var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .session-info {
+            margin-bottom: 2rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 1rem;
+        }
+
+        .highscore-display {
+            margin-top: 1.5rem;
+            font-size: 0.85rem;
+            color: var(--accent);
+        }
+
+        /* HUD */
+        #game-hud {
+            position: absolute;
+            top: 2rem;
+            width: 90%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            pointer-events: none; /* Let clicks pass through to canvas */
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 1rem; /* Base spacing */
+        }
+
+        .stat-box {
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 5px;
+        }
+
+        .stat-box .label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+        }
+
+        .stat-box .value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        /* Updated Instruction Overlay */
+        /* Changed to relative flow + margin to guarantee no overlap */
+        .instruction-overlay {
+            position: relative; 
+            margin-top: 4rem; /* Safe distance from the top stats */
+            width: 100%;
+            text-align: center;
+            font-size: 1.5rem;
+            letter-spacing: 0.3em;
+            font-weight: 800;
+            color: rgba(255,255,255,0.2);
+            text-transform: uppercase;
+            transition: color 0.2s;
+            pointer-events: none;
+        }
+
+        /* Result Overlay */
+        #result-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 20;
+        }
+
+        #result-overlay.visible {
+            opacity: 1;
+        }
+
+        #result-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 5rem;
+            color: var(--text);
+            line-height: 1;
+            text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        #result-title .small {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+        }
+
+        #result-message {
+            color: var(--accent);
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            margin-top: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .sub-stat {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 1rem;
+            animation: blink 2s infinite;
+        }
+
+        /* Summary Screen Grid */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: rgba(0,0,0,0.2);
+            padding: 1.5rem;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .full-width {
+            grid-column: span 2;
+        }
+
+        .score-bar {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        
+        #summary-score {
+            color: var(--accent);
+            font-weight: 800;
+        }
+
+        /* Animations & States */
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* False Start Visuals */
+        .false-start-bg {
+            background-color: rgba(244, 63, 94, 0.2) !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        
+        <!-- 3D Background Canvas -->
+        <div id="canvas-container"></div>
+
+        <!-- Setup Phase -->
+        <section id="setup-screen" class="glass-panel active">
+            <header>
+                <h1>KINETIC_REFLEX</h1>
+                <p class="subtitle">PRECISION REFLEX TRAINER</p>
+            </header>
+            
+            <div class="instructions">
+                <strong>PROTOCOL:</strong><br>
+                1. Click <span class="highlight-trigger">GREEN</span> signal immediately.<br>
+                2. IGNORE <span class="highlight-decoy">PURPLE</span> decoys (Level 3+).<br>
+                3. IGNORE <span class="highlight-decoy-2">ORANGE</span> decoys (Level 7+).<br>
+                4. Scan area for target spawn (Level 5+).
+            </div>
+
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label>START INTENSITY <span id="start-val" class="mono">1</span></label>
+                    <input type="range" id="start-diff" min="1" max="10" value="1" step="1">
+                    <div class="meta-label">Initial Velocity & Focus</div>
+                </div>
+
+                <div class="control-group">
+                    <label>TARGET INTENSITY <span id="end-val" class="mono">10</span></label>
+                    <input type="range" id="end-diff" min="1" max="10" value="10" step="1">
+                    <div class="meta-label">Terminal Velocity & Scatter</div>
+                </div>
+            </div>
+
+            <div class="session-info">
+                <p>SESSION PROTOCOL: <span class="mono">20 ROUNDS</span></p>
+                <p id="progression-text">LINEAR SCALING: ACTIVE</p>
+            </div>
+
+            <button id="btn-start" class="btn-primary">INITIALIZE SESSION</button>
+            
+            <div class="highscore-display">
+                PERSONAL BEST: <span id="display-best" class="mono">--</span> ms
+            </div>
+        </section>
+
+        <!-- Gameplay HUD -->
+        <section id="game-hud" class="glass-panel hidden">
+            <div class="hud-top">
+                <div class="stat-box">
+                    <span class="label">ROUND</span>
+                    <span id="hud-round" class="value mono">1/20</span>
+                </div>
+                <div class="stat-box">
+                    <span class="label">INTENSITY</span>
+                    <span id="hud-intensity" class="value mono">1.0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="label">AVG</span>
+                    <span id="hud-avg" class="value mono">--</span>
+                </div>
+            </div>
+
+            <div class="instruction-overlay" id="instruction-text">
+                WAIT FOR SIGNAL
+            </div>
+        </section>
+
+        <!-- Result Overlay -->
+        <div id="result-overlay" class="hidden">
+            <h2 id="result-title">245<span class="small">ms</span></h2>
+            <p id="result-message">EXCELLENT REFLEX</p>
+            <p class="mono sub-stat">CLICK TO CONTINUE</p>
+        </div>
+
+        <!-- Session Summary Modal -->
+        <section id="summary-screen" class="glass-panel hidden">
+            <h2>SESSION DEBRIEF</h2>
+            <div class="summary-grid">
+                <div class="stat-card full-width">
+                    <span class="label">PERFORMANCE RATING</span>
+                    <span id="summary-rating" class="value mono" style="font-size: 1.5rem; margin-top: 0.5rem; color: var(--text);">--</span>
+                    <div class="score-bar">SCORE: <span id="summary-score">0</span>/10</div>
+                </div>
+                <div class="stat-card">
+                    <span class="label">BEST</span>
+                    <span id="summary-best" class="value mono">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="label">AVERAGE</span>
+                    <span id="summary-avg" class="value mono">0</span>
+                </div>
+                <div class="stat-card full-width" style="flex-direction: row; justify-content: space-between; align-items: center;">
+                    <span class="label">FALSE STARTS / TIMEOUTS</span>
+                    <span id="summary-errors" class="value mono" style="color: var(--error)">0</span>
+                </div>
+            </div>
+            <button id="btn-restart" class="btn-primary">RESTART PROTOCOL</button>
+        </section>
+
+    </div>
+
+    <script>
+        /**
+         * REACTION TIMER GAME LOGIC
+         */
+
+        // --- CONFIGURATION ---
+        const CONFIG = {
+            TOTAL_ROUNDS: 20, 
+            COLORS: {
+                IDLE: 0x1E293B,      // Slate
+                ACTIVE: 0x10B981,    // Neon Emerald
+                DECOY: 0xA855F7,     // Purple for Decoy 1
+                DECOY_2: 0xF59E0B,   // Orange for Decoy 2 (Level 7+)
+                ERROR: 0xF43F5E,     // Crimson
+                ACCENT: 0x22D3EE     // Cyan
+            },
+            // Difficulty Mapping (Level 1 to 10)
+            DIFFICULTY_PARAMS: {
+                1: { scale: 1.5, decoyProb: 0.0, decoy2Prob: 0.0 }, 
+                10: { scale: 0.2, decoyProb: 0.7, decoy2Prob: 0.5 }   
+            }
+        };
+
+        class DifficultyManager {
+            constructor() {
+                this.startLevel = 1;
+                this.endLevel = 10;
+            }
+
+            setParams(start, end) {
+                this.startLevel = parseInt(start);
+                this.endLevel = parseInt(end);
+            }
+
+            getCurrentDifficulty(roundIndex) {
+                if (this.startLevel === this.endLevel) return this.startLevel;
+                
+                const progress = roundIndex / (CONFIG.TOTAL_ROUNDS - 1);
+                const diff = this.startLevel + (progress * (this.endLevel - this.startLevel));
+                return parseFloat(diff.toFixed(2));
+            }
+
+            getRoundParams(difficultyScalar) {
+                const lerp = (v0, v1, t) => v0 * (1 - t) + v1 * t;
+                const t = (difficultyScalar - 1) / 9;
+
+                // Decoy probability logic
+                let dProb = 0;
+                if (difficultyScalar >= 3) {
+                     dProb = lerp(0.2, CONFIG.DIFFICULTY_PARAMS[10].decoyProb, (difficultyScalar-3)/7);
+                }
+
+                let d2Prob = 0;
+                if (difficultyScalar >= 7) {
+                    d2Prob = lerp(0.2, CONFIG.DIFFICULTY_PARAMS[10].decoy2Prob, (difficultyScalar-7)/3);
+                }
+
+                return {
+                    scale: lerp(CONFIG.DIFFICULTY_PARAMS[1].scale, CONFIG.DIFFICULTY_PARAMS[10].scale, t),
+                    decoyProb: dProb,
+                    decoy2Prob: d2Prob,
+                    difficulty: difficultyScalar
+                };
+            }
+        }
+
+        class VisualEngine {
+            constructor() {
+                this.container = document.getElementById('canvas-container');
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+                
+                this.geometry = new THREE.IcosahedronGeometry(1, 1);
+                this.material = new THREE.MeshPhongMaterial({ 
+                    color: CONFIG.COLORS.IDLE,
+                    shininess: 100,
+                    flatShading: true
+                });
+                this.mesh = new THREE.Mesh(this.geometry, this.material);
+                
+                // Lighting
+                this.ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                this.pointLight = new THREE.PointLight(CONFIG.COLORS.ACCENT, 1);
+                
+                this.init();
+            }
+
+            init() {
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.container.appendChild(this.renderer.domElement);
+
+                this.scene.add(this.mesh);
+                this.scene.add(this.ambientLight);
+                
+                this.pointLight.position.set(10, 10, 10);
+                this.scene.add(this.pointLight);
+                
+                this.camera.position.z = 5;
+                
+                window.addEventListener('resize', () => this.onResize());
+                this.animate();
+            }
+
+            setColor(hex) {
+                this.material.color.setHex(hex);
+            }
+
+            setScale(scale) {
+                this.mesh.scale.set(scale, scale, scale);
+            }
+
+            setPosition(x, y) {
+                this.mesh.position.set(x, y, 0);
+            }
+
+            resetPosition() {
+                this.mesh.position.set(0, 0, 0);
+            }
+
+            // Calculates visible bounds at Z=0 based on camera properties
+            getVisibleBounds() {
+                const zDist = this.camera.position.z; // 5
+                const vFov = this.camera.fov * Math.PI / 180;
+                const height = 2 * Math.tan(vFov / 2) * zDist;
+                const width = height * this.camera.aspect;
+                return { width, height };
+            }
+
+            pulse() {
+                const time = performance.now() * 0.001;
+                this.mesh.rotation.x += 0.005;
+                this.mesh.rotation.y += 0.005;
+            }
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.pulse();
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        class GameController {
+            constructor() {
+                this.visuals = new VisualEngine();
+                this.difficulty = new DifficultyManager();
+                
+                // State
+                this.state = 'SETUP'; 
+                this.currentRound = 0;
+                this.results = [];
+                this.falseStarts = 0; 
+                this.startTime = 0;
+                this.timeoutId = null;
+                this.decoyTimeoutId = null;
+                this.missTimeoutId = null;
+
+                // DOM Elements
+                this.ui = {
+                    setup: document.getElementById('setup-screen'),
+                    hud: document.getElementById('game-hud'),
+                    summary: document.getElementById('summary-screen'),
+                    resultOverlay: document.getElementById('result-overlay'),
+                    
+                    startBtn: document.getElementById('btn-start'),
+                    restartBtn: document.getElementById('btn-restart'),
+                    
+                    startDiffInput: document.getElementById('start-diff'),
+                    endDiffInput: document.getElementById('end-diff'),
+                    startVal: document.getElementById('start-val'),
+                    endVal: document.getElementById('end-val'),
+                    
+                    hudRound: document.getElementById('hud-round'),
+                    hudAvg: document.getElementById('hud-avg'),
+                    hudInt: document.getElementById('hud-intensity'),
+                    instruction: document.getElementById('instruction-text'),
+                    
+                    resTitle: document.getElementById('result-title'),
+                    resMsg: document.getElementById('result-message'),
+                    
+                    bestDisplay: document.getElementById('display-best')
+                };
+
+                this.bindEvents();
+                this.loadBestScore();
+            }
+
+            bindEvents() {
+                this.ui.startDiffInput.addEventListener('input', (e) => {
+                    this.ui.startVal.textContent = e.target.value;
+                    this.updateProgressionText();
+                });
+                
+                this.ui.endDiffInput.addEventListener('input', (e) => {
+                    this.ui.endVal.textContent = e.target.value;
+                    this.updateProgressionText();
+                });
+
+                this.ui.startBtn.addEventListener('click', () => this.startSession());
+                this.ui.restartBtn.addEventListener('click', () => this.resetToSetup());
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space') this.handleInput();
+                });
+                
+                document.getElementById('canvas-container').addEventListener('mousedown', () => this.handleInput());
+                
+                document.addEventListener('click', () => {
+                    if (this.state === 'RESULT') this.nextRound();
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (this.state === 'RESULT' && e.code === 'Space') this.nextRound();
+                });
+            }
+
+            updateProgressionText() {
+                const s = parseInt(this.ui.startDiffInput.value);
+                const e = parseInt(this.ui.endDiffInput.value);
+                const text = document.getElementById('progression-text');
+                
+                if (s === e) text.textContent = "STATIC DIFFICULTY: CONSTANT";
+                else if (s < e) text.textContent = "LINEAR SCALING: ACCELERATING";
+                else text.textContent = "LINEAR SCALING: DECELERATING";
+            }
+
+            loadBestScore() {
+                const best = localStorage.getItem('chrono_best');
+                if (best) this.ui.bestDisplay.textContent = best;
+            }
+
+            startSession() {
+                this.difficulty.setParams(this.ui.startDiffInput.value, this.ui.endDiffInput.value);
+                this.currentRound = 0;
+                this.results = [];
+                this.falseStarts = 0;
+                
+                this.ui.setup.classList.remove('active');
+                this.ui.setup.classList.add('hidden');
+                this.ui.summary.classList.remove('active');
+                this.ui.summary.classList.add('hidden');
+                this.ui.hud.classList.remove('hidden');
+                this.ui.hud.classList.add('active');
+
+                this.startRound();
+            }
+
+            startRound() {
+                if (this.currentRound >= CONFIG.TOTAL_ROUNDS) {
+                    this.endSession();
+                    return;
+                }
+
+                this.state = 'WAITING';
+                this.ui.resultOverlay.classList.remove('visible');
+                this.ui.instruction.textContent = "WAIT FOR SIGNAL";
+                this.ui.instruction.style.color = "rgba(255,255,255,0.2)";
+
+                const diffScalar = this.difficulty.getCurrentDifficulty(this.currentRound);
+                const params = this.difficulty.getRoundParams(diffScalar);
+
+                this.ui.hudRound.textContent = `${this.currentRound + 1}/${CONFIG.TOTAL_ROUNDS}`;
+                this.ui.hudInt.textContent = diffScalar.toFixed(1);
+                
+                this.visuals.setColor(CONFIG.COLORS.IDLE);
+                this.visuals.setScale(params.scale);
+                
+                // --- POSITION LOGIC ---
+                // Level 5+ introduces "80% Screen Box with Rounded Corners" behavior
+                // Below Level 5 is center.
+                if (params.difficulty >= 5) {
+                    const bounds = this.visuals.getVisibleBounds();
+                    const rangeX = (bounds.width * 0.8) / 2; // Half-width of 80% box
+                    const rangeY = (bounds.height * 0.8) / 2; // Half-height of 80% box
+                    
+                    // Simple random point in box
+                    // To approximate "rounded corners" we could filter points, 
+                    // but for a spawn area, a clamped box is standard for "box shape".
+                    const x = (Math.random() * 2 - 1) * rangeX;
+                    const y = (Math.random() * 2 - 1) * rangeY;
+                    
+                    this.visuals.setPosition(x, y);
+                } else {
+                    this.visuals.resetPosition();
+                }
+
+                // --- TIMING LOGIC ---
+                let baseDelay = Math.random() * 4000 + 1000;
+                const decoyGap = Math.random() * 1500 + 500;
+
+                // Decoy Logic (Supports Two Types)
+                let chosenDecoy = null;
+                if (Math.random() < params.decoyProb) {
+                    chosenDecoy = CONFIG.COLORS.DECOY; // Purple
+                } else if (Math.random() < params.decoy2Prob) {
+                    chosenDecoy = CONFIG.COLORS.DECOY_2; // Orange
+                }
+
+                if (chosenDecoy) {
+                     if (baseDelay < decoyGap + 500) baseDelay += decoyGap;
+                     
+                     const decoyTime = baseDelay - decoyGap;
+                     
+                     this.decoyTimeoutId = setTimeout(() => {
+                         if (this.state === 'WAITING') {
+                            this.visuals.setColor(chosenDecoy);
+                            setTimeout(() => { 
+                                if (this.state === 'WAITING') this.visuals.setColor(CONFIG.COLORS.IDLE); 
+                            }, 400);
+                         }
+                     }, decoyTime);
+                }
+
+                this.timeoutId = setTimeout(() => {
+                    this.triggerStimulus();
+                }, baseDelay);
+            }
+
+            triggerStimulus() {
+                if (this.state !== 'WAITING') return;
+                
+                this.state = 'ACTIVE';
+                this.startTime = performance.now();
+                
+                this.visuals.setColor(CONFIG.COLORS.ACTIVE);
+                this.ui.instruction.textContent = "CLICK!";
+                this.ui.instruction.style.color = "#10B981";
+
+                // 1000ms Timeout Limit
+                this.missTimeoutId = setTimeout(() => {
+                    if (this.state === 'ACTIVE') {
+                        this.handleMiss();
+                    }
+                }, 1000);
+            }
+
+            handleMiss() {
+                this.handleFalseStart("TIMEOUT! TOO SLOW");
+            }
+
+            handleInput() {
+                if (this.state === 'WAITING') {
+                    const currentColor = this.visuals.material.color.getHex();
+                    if (currentColor === CONFIG.COLORS.DECOY || currentColor === CONFIG.COLORS.DECOY_2) {
+                         this.handleFalseStart("DECOY TRIGGERED!");
+                    } else {
+                         this.handleFalseStart("TOO EARLY!");
+                    }
+                } else if (this.state === 'ACTIVE') {
+                    this.handleSuccess();
+                }
+            }
+
+            handleFalseStart(message) {
+                clearTimeout(this.timeoutId);
+                clearTimeout(this.decoyTimeoutId);
+                clearTimeout(this.missTimeoutId); 
+                
+                this.falseStarts++; 
+
+                document.body.classList.add('false-start-bg');
+                this.visuals.setColor(CONFIG.COLORS.ERROR);
+                this.ui.hud.classList.add('shake');
+                
+                this.ui.instruction.textContent = message;
+                this.ui.instruction.style.color = "#F43F5E";
+                
+                setTimeout(() => {
+                    document.body.classList.remove('false-start-bg');
+                    this.ui.hud.classList.remove('shake');
+                    this.startRound();
+                }, 1000);
+            }
+
+            handleSuccess() {
+                clearTimeout(this.missTimeoutId); 
+
+                const endTime = performance.now();
+                const reactionTime = Math.floor(endTime - this.startTime);
+                
+                this.state = 'RESULT';
+                this.results.push(reactionTime);
+                this.currentRound++;
+
+                const avg = Math.floor(this.results.reduce((a, b) => a + b, 0) / this.results.length);
+                this.ui.hudAvg.textContent = `${avg}ms`;
+
+                this.ui.resTitle.innerHTML = `${reactionTime}<span class="small">ms</span>`;
+                
+                let msg = "GOOD";
+                if (reactionTime < 200) msg = "GODLIKE";
+                else if (reactionTime < 300) msg = "EXCELLENT";
+                else if (reactionTime > 500) msg = "SLOW";
+                
+                this.ui.resMsg.textContent = msg;
+                this.ui.resultOverlay.classList.add('visible');
+            }
+
+            nextRound() {
+                this.startRound();
+            }
+
+            endSession() {
+                this.state = 'SUMMARY';
+                this.ui.hud.classList.remove('active');
+                this.ui.hud.classList.add('hidden');
+                this.ui.resultOverlay.classList.remove('visible');
+                this.ui.summary.classList.remove('hidden');
+                this.ui.summary.classList.add('active');
+
+                const avg = Math.floor(this.results.reduce((a, b) => a + b, 0) / this.results.length);
+                const best = Math.min(...this.results);
+
+                document.getElementById('summary-avg').textContent = avg;
+                document.getElementById('summary-best').textContent = best;
+                document.getElementById('summary-errors').textContent = this.falseStarts;
+
+                // --- SCORING ALGORITHM ---
+                let baseScore = 0;
+                if (avg < 220) baseScore = 10;
+                else if (avg < 250) baseScore = 9;
+                else if (avg < 280) baseScore = 8;
+                else if (avg < 310) baseScore = 7;
+                else if (avg < 350) baseScore = 6;
+                else if (avg < 400) baseScore = 5;
+                else if (avg < 480) baseScore = 4;
+                else if (avg < 550) baseScore = 3;
+                else baseScore = 2;
+
+                // Adjust penalty for 20 rounds? 
+                // Since total rounds doubled, errors might double. 
+                // We keep 1:1 penalty to keep it "Strict".
+                let penalty = this.falseStarts * 1;
+                let finalScore = Math.max(0, baseScore - penalty);
+
+                document.getElementById('summary-score').textContent = finalScore;
+
+                let rating = "UNKNOWN";
+                if (finalScore >= 10) rating = "HUMAN AIMBOT";
+                else if (finalScore >= 8) rating = "CYBERNETIC";
+                else if (finalScore >= 6) rating = "ELITE OPERATIVE";
+                else if (finalScore >= 4) rating = "STANDARD ISSUE";
+                else if (finalScore >= 2) rating = "NEEDS CALIBRATION";
+                else rating = "SYSTEM FAILURE";
+
+                const ratingEl = document.getElementById('summary-rating');
+                ratingEl.textContent = rating;
+                
+                if(finalScore >= 8) ratingEl.style.color = CONFIG.COLORS.TRIGGER;
+                else if (finalScore <= 3) ratingEl.style.color = CONFIG.COLORS.ERROR;
+                else ratingEl.style.color = CONFIG.COLORS.ACCENT;
+
+                const oldBest = localStorage.getItem('chrono_best');
+                if (!oldBest || best < parseInt(oldBest)) {
+                    localStorage.setItem('chrono_best', best);
+                    this.ui.bestDisplay.textContent = best;
+                }
+            }
+
+            resetToSetup() {
+                this.ui.summary.classList.remove('active');
+                this.ui.summary.classList.add('hidden');
+                this.ui.setup.classList.remove('hidden');
+                this.ui.setup.classList.add('active');
+                
+                this.visuals.setColor(CONFIG.COLORS.IDLE);
+                this.visuals.resetPosition();
+                this.visuals.setScale(CONFIG.DIFFICULTY_PARAMS[1].scale);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            new GameController();
+        });
+    </script>
+</body>
+</html>
