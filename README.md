@@ -57,6 +57,7 @@ Your **Final Score (0-10)** is calculated based on your Adjusted Reaction Time, 
 
 ## 🚀 Installation & Usage
 
-1.  Download the `index.html` file.
-2.  Open it in any modern web browser (Chrome, Firefox, Edge, Safari).
-3.  No server or installation required.
+1.  Download the repository files (`index.html`, `script.js`, and `style.css`).
+2.  Ensure all three files are in the same folder.
+3.  Open `index.html` in any modern web browser (Chrome, Firefox, Edge, Safari).
+4.  No server or installation required.

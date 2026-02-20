@@ -1,0 +1,426 @@
+:root {
+    /* Electric Precision Palette */
+    --bg: #0F172A;
+    --surface: rgba(30, 41, 59, 0.7);
+    --accent: #22D3EE;
+    --accent-dim: rgba(34, 211, 238, 0.2);
+    --trigger: #10B981;
+    --decoy: #A855F7;    /* Purple for Decoy 1 */
+    --decoy-2: #F59E0B;  /* Orange for Decoy 2 */
+    --error: #F43F5E;
+    --text: #F8FAFC;
+    --text-muted: #94A3B8;
+
+    /* Spacing & Borders */
+    --radius: 16px;
+    --blur: 16px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none; /* Prevent text selection during frantic clicking */
+}
+
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Typography Utilities */
+.mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+h1 {
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    font-size: 3rem;
+    background: linear-gradient(to right, var(--text), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+}
+
+.subtitle {
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.instructions {
+    background: rgba(34, 211, 238, 0.05);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+    text-align: left;
+}
+
+.highlight-trigger { color: var(--trigger); font-weight: 800; }
+
+/* 3D Canvas Layer */
+#canvas-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    cursor: crosshair;
+}
+
+/* Layout Container */
+#app-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+/* Quit Button */
+#btn-quit {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    background: rgba(244, 63, 94, 0.1);
+    border: 1px solid rgba(244, 63, 94, 0.3);
+    color: var(--error);
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+    z-index: 50;
+}
+
+#btn-quit:hover {
+    background: var(--error);
+    color: white;
+}
+
+/* Glassmorphism Panels */
+.glass-panel {
+    background: var(--surface);
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius);
+    padding: 3rem;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.hidden {
+    opacity: 0;
+    pointer-events: none;
+    position: absolute; /* Remove from flow */
+    transform: scale(0.95);
+}
+
+.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: scale(1);
+}
+
+/* Controls */
+.controls-grid {
+    display: grid;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    text-align: left;
+}
+
+.control-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.meta-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+input[type="range"] {
+    width: 100%;
+    height: 4px;
+    background: var(--bg);
+    border-radius: 2px;
+    appearance: none;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px var(--accent);
+    transition: transform 0.1s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+/* Buttons */
+.btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 1rem 2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.btn-primary:hover {
+    background: #fff;
+    box-shadow: 0 0 20px var(--accent);
+    transform: translateY(-2px);
+}
+
+/* Stats Split Layout */
+.stats-split-container {
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 1rem;
+}
+
+.stat-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+}
+
+/* Add a vertical divider visually using border on the first column */
+.stat-column:first-child {
+    border-right: 1px solid rgba(255,255,255,0.1);
+    padding-right: 0.5rem;
+}
+
+.stat-column .col-header {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-item .label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.stat-item .value {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.highlight-score {
+    font-weight: 800;
+    font-size: 0.8rem !important;
+}
+
+/* HUD */
+#game-hud {
+    position: absolute;
+    top: 1.5rem; /* MOVED HIGHER */
+    width: 90%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    pointer-events: none; /* Let clicks pass through to canvas */
+}
+
+.hud-top {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    width: 100%;
+    margin-bottom: 1.5rem; /* Increased spacing */
+}
+
+.stat-box {
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    padding: 1rem 2rem; /* BIGGER PADDING */
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 140px;
+}
+
+.stat-box .label {
+    font-size: 0.85rem; /* BIGGER LABEL */
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.25rem;
+}
+
+.stat-box .value {
+    font-size: 2rem; /* BIGGER VALUE */
+    font-weight: 700;
+    color: var(--accent);
+}
+
+/* Updated Instruction Overlay */
+.instruction-overlay {
+    position: relative; 
+    margin-top: 1.5rem; /* Adjusted to sit nicely between HUD and Box */
+    width: 100%;
+    text-align: center;
+    font-size: 1.5rem;
+    letter-spacing: 0.3em;
+    font-weight: 800;
+    color: rgba(255,255,255,0.2);
+    text-transform: uppercase;
+    transition: all 0.1s;
+    pointer-events: none;
+    min-height: 3rem; /* Reserve space */
+}
+
+/* State when showing result */
+.instruction-overlay.show-result {
+    font-size: 4rem;
+    color: var(--text);
+    text-shadow: 0 0 25px var(--accent);
+}
+
+.instruction-overlay .unit {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    margin-left: 0.5rem;
+}
+
+/* Summary Screen Grid */
+.summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.stat-card {
+    background: rgba(0,0,0,0.2);
+    padding: 1.5rem;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.full-width {
+    grid-column: span 2;
+}
+
+.score-bar {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#summary-score {
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 4rem; /* Increased size */
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+.score-explanation {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    opacity: 0.8;
+    max-width: 90%;
+    margin: 0 auto;
+    line-height: 1.4;
+}
+
+/* Added Verdict Styling */
+#summary-verdict {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 1rem;
+    font-style: italic;
+    line-height: 1.5;
+    padding: 0 1rem;
+}
+
+/* Animations & States */
+.shake {
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* False Start Visuals */
+.false-start-bg {
+    background-color: rgba(244, 63, 94, 0.2) !important;
+}
